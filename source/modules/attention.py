@@ -1,18 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-################################################################################
 """
 File: source/encoders/attention.py
 """
 
 import torch
 import torch.nn as nn
-
-from source.utils.misc import sequence_mask
 
 
 class Attention(nn.Module):

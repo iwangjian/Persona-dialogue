@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-################################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-################################################################################
 """
 File: source/models/seq2seq.py
 """
 
 import torch
 import torch.nn as nn
-from torch.nn.utils import clip_grad_norm_
 
 from source.models.base_model import BaseModel
 from source.modules.embedder import Embedder
@@ -157,7 +151,7 @@ class Seq2Seq(BaseModel):
         metrics.add(loss=loss)
         return metrics
 
-    def iterate(self, inputs, optimizer=None, grad_clip=None, is_training=True, epoch=-1):
+    def iterate(self, inputs, optimizer=None, grad_clip=None, is_training=True):
         """
         iterate
         """
@@ -177,7 +171,6 @@ class Seq2Seq(BaseModel):
             optimizer.zero_grad()
             loss.backward()
             if grad_clip is not None and grad_clip > 0:
-                clip_grad_norm_(parameters=self.parameters(),
-                                max_norm=grad_clip)
+                torch.nn.utils.clip_grad_norm_(parameters=self.parameters(), max_norm=grad_clip)
             optimizer.step()
         return metrics

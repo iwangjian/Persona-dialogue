@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-################################################################################
 """
 File: source/utils/engine.py
 """
@@ -202,8 +197,7 @@ class Trainer(object):
             metrics = self.model.iterate(inputs,
                                          optimizer=self.optimizer,
                                          grad_clip=self.grad_clip,
-                                         is_training=True,
-                                         epoch=self.epoch)
+                                         is_training=True)
             elapsed = time.time() - start_time
 
             train_mm.update(metrics)

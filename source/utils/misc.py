@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-################################################################################
 """
 File: source/utils/misc.py
 """
@@ -106,39 +101,6 @@ def list2tensor(X):
 
     return tensor, lengths
 
-
-# def list2tensor(X, max_len=None):
-#     sizes = max_lens(X)
-#
-#     if len(sizes) == 1:
-#         tensor = torch.tensor(X)
-#         return tensor
-#
-#     if max_len is not None:
-#         assert max_len >= sizes[-1]
-#         sizes[-1] = max_len
-#
-#     tensor = torch.zeros(sizes, dtype=torch.long)
-#     lengths = torch.zeros(sizes[:-1], dtype=torch.long)
-#     if len(sizes) == 2:
-#         for i, x in enumerate(X):
-#             l = len(x)
-#             tensor[i, :l] = torch.tensor(x)
-#             lengths[i] = l
-#     else:
-#         for i, xs in enumerate(X):
-#             for j, x in enumerate(xs):
-#                 l = len(x)
-#                 tensor[i, j, :l] = torch.tensor(x)
-#                 lengths[i, j] = l
-#
-#     return tensor, lengths
-
-
-# def one_hot(indice, vocab_size):
-#     T = torch.zeros(*indice.size(), vocab_size).type_as(indice).float()
-#     T = T.scatter(-1, indice.unsqueeze(-1), 1)
-#     return T
 
 def one_hot(indice, num_classes):
     """

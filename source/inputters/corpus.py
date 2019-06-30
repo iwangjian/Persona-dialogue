@@ -1,17 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-################################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-################################################################################
 """
 File: source/inputters/corpus.py
 """
 
 import os
 import torch
-
+import json
 from tqdm import tqdm
 from source.inputters.field import tokenize
 from source.inputters.field import TextField
@@ -33,8 +28,8 @@ class Corpus(object):
         self.min_freq = min_freq
         self.max_vocab_size = max_vocab_size
 
-        prepared_data_file = data_prefix + "_" + str(max_vocab_size) + ".data.pt"
-        prepared_vocab_file = data_prefix + "_" + str(max_vocab_size) + ".vocab.pt"
+        prepared_data_file = data_prefix + "." + str(max_vocab_size) + ".data.pt"
+        prepared_vocab_file = data_prefix + "." + str(max_vocab_size) + ".vocab.pt"
 
         self.prepared_data_file = os.path.join(data_dir, prepared_data_file)
         self.prepared_vocab_file = os.path.join(data_dir, prepared_vocab_file)
@@ -152,10 +147,9 @@ class Corpus(object):
         """
         build
         """
-        print("Start to build corpus!")
-        train_file = os.path.join(self.data_dir, self.data_prefix + ".train")
-        valid_file = os.path.join(self.data_dir, self.data_prefix + ".dev")
-        test_file = os.path.join(self.data_dir, self.data_prefix + ".test")
+        train_file = os.path.join(self.data_dir, "train.json")
+        valid_file = os.path.join(self.data_dir, "valid.json")
+        test_file = os.path.join(self.data_dir, "test.json")
 
         print("Reading data ...")
         train_raw = self.read_data(train_file, data_type="train")
@@ -332,18 +326,39 @@ class KnowledgeCorpus(Corpus):
         data = []
         with open(data_file, "r", encoding="utf-8") as f:
             for line in f:
-                if self.with_label:
-                    src, tgt, knowledge, label = line.strip().split('\t')[:4]
-                    filter_knowledge = []
-                    for sent in knowledge.split(''):
-                        filter_knowledge.append(' '.join(sent.split()[:self.max_len]))
-                    data.append({'src': src, 'tgt': tgt, 'cue': filter_knowledge, 'index': label})
-                else:
-                    src, tgt, knowledge = line.strip().split('\t')[:3]
-                    filter_knowledge = []
-                    for sent in knowledge.split(''):
-                        filter_knowledge.append(' '.join(sent.split()[:self.max_len]))
-                    data.append({'src': src, 'tgt': tgt, 'cue':filter_knowledge})
+                dialog = json.loads(line, encoding='utf-8')
+                history = dialog["dialog"]
+                uid = dialog["uid"]
+                profile = dialog["profile"]
+                responder_profile = dialog["responder_profile"]
+
+                src = ""
+                for idx, sent in zip(uid, history):
+                    tag_list = profile[idx]["tag"][0].split(';')
+                    loc_content = profile[idx]["loc"]
+                    tag_list.append(loc_content)
+                    tag_content = ' '.join(tag_list)
+                    sent_content = sent[0]
+                    src += tag_content
+                    src += ' '
+                    src += sent_content
+                    src += ' '
+
+                src = src.strip()
+                tgt = dialog["golden_response"][0]
+
+                filter_knowledge = []
+                filter_knowledge.append(' '.join(responder_profile["tag"][0].split(';')))
+                filter_knowledge.append(responder_profile["loc"])
+                data.append({'src': src, 'tgt': tgt, 'cue': filter_knowledge})
+                '''
+                num += 1
+                if num < 10:
+                    print("src:", src)
+                    print("tgt:", tgt)
+                    print("cue:", filter_knowledge)
+                    print("\n")
+                '''
 
         filtered_num = len(data)
         if self.filter_pred is not None:
