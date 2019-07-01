@@ -22,21 +22,26 @@ class Corpus(object):
                  data_dir,
                  data_prefix,
                  min_freq=0,
-                 max_vocab_size=None):
+                 max_vocab_size=None,
+                 vocab_file=None):
         self.data_dir = data_dir
         self.data_prefix = data_prefix
         self.min_freq = min_freq
         self.max_vocab_size = max_vocab_size
+        if vocab_file is not None:
+            prepared_vocab_file = vocab_file
+        else:
+            prepared_vocab_file = data_prefix + "." + str(max_vocab_size) + ".vocab.pt"
 
-        prepared_data_file = data_prefix + "." + str(max_vocab_size) + ".data.pt"
-        prepared_vocab_file = data_prefix + "." + str(max_vocab_size) + ".vocab.pt"
+        prepared_data_file = data_prefix + ".data.pt"
 
         self.prepared_data_file = os.path.join(data_dir, prepared_data_file)
         self.prepared_vocab_file = os.path.join(data_dir, prepared_vocab_file)
         self.fields = {}
         self.filter_pred = None
         self.sort_fn = None
-        self.data = None
+        self.data = {}
+        self.padding_idx = None
 
     def load(self):
         """
@@ -45,19 +50,17 @@ class Corpus(object):
         if not (os.path.exists(self.prepared_data_file) and
                 os.path.exists(self.prepared_vocab_file)):
             self.build()
-        self.load_vocab(self.prepared_vocab_file)
+
         self.load_data(self.prepared_data_file)
 
-        self.padding_idx = self.TGT.stoi[self.TGT.pad_token]
-
-    def reload(self, data_type='test'):
+    def reload(self, data_type='test', data_file=None):
         """
         reload
         """
-        data_file = os.path.join(self.data_dir, self.data_prefix + "." + data_type)
-        data_raw = self.read_data(data_file, data_type="test")
-        data_examples = self.build_examples(data_raw)
-        self.data[data_type] = Dataset(data_examples)
+        if data_file is not None:
+            data_raw = self.read_data(data_file, data_type="test")
+            data_examples = self.build_examples(data_raw)
+            self.data[data_type] = Dataset(data_examples)
 
         print("Number of examples:",
               " ".join("{}-{}".format(k.upper(), len(v)) for k, v in self.data.items()))
@@ -75,13 +78,13 @@ class Corpus(object):
         print("Number of examples:",
               " ".join("{}-{}".format(k.upper(), len(v)) for k, v in self.data.items()))
 
-    def load_vocab(self, prepared_vocab_file):
+    def load_vocab(self):
         """
         load_vocab
         """
-        prepared_vocab_file = prepared_vocab_file or self.prepared_vocab_file
-        print("Loading prepared vocab from {} ...".format(prepared_vocab_file))
-        vocab_dict = torch.load(prepared_vocab_file)
+
+        print("Loading prepared vocab from {} ...".format(self.prepared_vocab_file))
+        vocab_dict = torch.load(self.prepared_vocab_file)
 
         for name, vocab in vocab_dict.items():
             if name in self.fields:
@@ -200,71 +203,6 @@ class Corpus(object):
         return data_loader
 
 
-class SrcTgtCorpus(Corpus):
-    """
-    SrcTgtCorpus
-    """
-    def __init__(self,
-                 data_dir,
-                 data_prefix,
-                 min_freq=0,
-                 max_vocab_size=None,
-                 min_len=0,
-                 max_len=100,
-                 embed_file=None,
-                 share_vocab=False):
-        super(SrcTgtCorpus, self).__init__(data_dir=data_dir,
-                                           data_prefix=data_prefix,
-                                           min_freq=min_freq,
-                                           max_vocab_size=max_vocab_size)
-        self.min_len = min_len
-        self.max_len = max_len
-        self.share_vocab = share_vocab
-
-        self.SRC = TextField(tokenize_fn=tokenize,
-                             embed_file=embed_file)
-        if self.share_vocab:
-            self.TGT = self.SRC
-        else:
-            self.TGT = TextField(tokenize_fn=tokenize,
-                                 embed_file=embed_file)
-
-        self.fields = {'src': self.SRC, 'tgt': self.TGT}
-
-        def src_filter_pred(src):
-            """
-            src_filter_pred
-            """
-            return min_len <= len(self.SRC.tokenize_fn(src)) <= max_len
-
-        def tgt_filter_pred(tgt):
-            """
-            tgt_filter_pred
-            """
-            return min_len <= len(self.TGT.tokenize_fn(tgt)) <= max_len
-
-        self.filter_pred = lambda ex: src_filter_pred(ex['src']) and tgt_filter_pred(ex['tgt'])
-
-    def read_data(self, data_file, data_type="train"):
-        """
-        read_data
-        """
-        data = []
-        filtered = 0
-        with open(data_file, "r", encoding="utf-8") as f:
-            for line in f:
-                src, tgt = line.strip().split('\t')[:2]
-                data.append({'src': src, 'tgt': tgt})
-
-        filtered_num = len(data)
-        if self.filter_pred is not None:
-            data = [ex for ex in data if self.filter_pred(ex)]
-        filtered_num -= len(data)
-        print(
-            "Read {} {} examples ({} filtered)".format(len(data), data_type.upper(), filtered_num))
-        return data
-
-
 class KnowledgeCorpus(Corpus):
     """
     KnowledgeCorpus
@@ -274,6 +212,7 @@ class KnowledgeCorpus(Corpus):
                  data_prefix,
                  min_freq=0,
                  max_vocab_size=None,
+                 vocab_file=None,
                  min_len=0,
                  max_len=100,
                  embed_file=None,
@@ -282,7 +221,8 @@ class KnowledgeCorpus(Corpus):
         super(KnowledgeCorpus, self).__init__(data_dir=data_dir,
                                               data_prefix=data_prefix,
                                               min_freq=min_freq,
-                                              max_vocab_size=max_vocab_size)
+                                              max_vocab_size=max_vocab_size,
+                                              vocab_file=vocab_file)
         self.min_len = min_len
         self.max_len = max_len
         self.share_vocab = share_vocab
@@ -305,6 +245,10 @@ class KnowledgeCorpus(Corpus):
         else:
             self.fields = {'src': self.SRC, 'tgt': self.TGT, 'cue': self.CUE}
 
+        # load vocab
+        self.load_vocab()
+        self.padding_idx = self.TGT.stoi[self.TGT.pad_token]
+
         def src_filter_pred(src):
             """
             src_filter_pred
@@ -321,47 +265,51 @@ class KnowledgeCorpus(Corpus):
 
     def read_data(self, data_file, data_type="train"):
         """
-        read_data
+        read_data:q
         """
+        num = 0
         data = []
         with open(data_file, "r", encoding="utf-8") as f:
             for line in f:
                 dialog = json.loads(line, encoding='utf-8')
                 history = dialog["dialog"]
-                uid = dialog["uid"]
+                uid = [int(i) for i in dialog["uid"]]
                 profile = dialog["profile"]
-                responder_profile = dialog["responder_profile"]
+                if "responder_profile" in dialog.keys():
+                    responder_profile = dialog["responder_profile"]
+                elif "response_profile" in dialog.keys():
+                    responder_profile = dialog["response_profile"]
+                else:
+                    raise ValueError("No responder_profile or response_profile!")
 
                 src = ""
                 for idx, sent in zip(uid, history):
-                    tag_list = profile[idx]["tag"][0].split(';')
-                    loc_content = profile[idx]["loc"]
-                    tag_list.append(loc_content)
-                    tag_content = ' '.join(tag_list)
+                    #tag_list = profile[idx]["tag"][0].split(';')
+                    #loc_content = profile[idx]["loc"]
+                    #tag_list.append(loc_content)
+                    #tag_content = ' '.join(tag_list)
                     sent_content = sent[0]
-                    src += tag_content
-                    src += ' '
+                    #src += tag_content
+                    #src += ' '
                     src += sent_content
                     src += ' '
 
                 src = src.strip()
                 tgt = dialog["golden_response"][0]
-
                 filter_knowledge = []
                 filter_knowledge.append(' '.join(responder_profile["tag"][0].split(';')))
                 filter_knowledge.append(responder_profile["loc"])
                 data.append({'src': src, 'tgt': tgt, 'cue': filter_knowledge})
-                '''
+
                 num += 1
                 if num < 10:
                     print("src:", src)
                     print("tgt:", tgt)
                     print("cue:", filter_knowledge)
                     print("\n")
-                '''
 
         filtered_num = len(data)
-        if self.filter_pred is not None:
+        if not data_type == "test" and self.filter_pred is not None:
             data = [ex for ex in data if self.filter_pred(ex)]
         filtered_num -= len(data)
         print(
