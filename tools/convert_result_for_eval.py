@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-################################################################################
 """
 File: convert_result_for_eval.py
 """
 
 import sys
 import json
-import collections
 
 
 def convert_result_for_eval(sample_file, result_file, output_file):
@@ -24,17 +18,14 @@ def convert_result_for_eval(sample_file, result_file, output_file):
     assert len(sample_list) == len(result_list)
     fout = open(output_file, 'w')
     for i, sample in enumerate(sample_list):
-        sample = json.loads(sample, encoding="utf-8", object_pairs_hook=collections.OrderedDict)
-        response = sample["response"]
+        sample = json.loads(sample, encoding="utf-8")
+        response = sample["golden_response"][0]
         fout.write(result_list[i] + "\t" + response + "\n")
 
     fout.close()
 
 
 def main():
-    """
-    main
-    """
     convert_result_for_eval(sys.argv[1],
                             sys.argv[2],
                             sys.argv[3])

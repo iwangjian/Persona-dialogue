@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-################################################################################
 """
 File: eval.py
 """
@@ -12,11 +7,6 @@ File: eval.py
 import sys
 import math
 from collections import Counter
-
-if len(sys.argv) < 2:
-    print("Usage: " + sys.argv[0] + " eval_file")
-    print("eval file format: pred_response \t gold_response")
-    exit()
 
 
 def get_dict(tokens, ngram, gdict=None):
@@ -113,9 +103,7 @@ def calc_distinct_ngram(pair_list, ngram):
         get_dict(predict_tokens, ngram, pred_dict)
     for key, freq in pred_dict.items():
         ngram_total += freq
-        ngram_distinct_count += 1 
-        #if freq == 1:
-        #    ngram_distinct_count += freq
+        ngram_distinct_count += 1
     return ngram_distinct_count / ngram_total
 
 
@@ -148,30 +136,35 @@ def calc_f1(data):
     return f1
 
 
-eval_file = sys.argv[1]
-sents = []
-for line in open(eval_file):
-    tk = line.strip().split("\t")
-    if len(tk) < 2:
-        continue
-    pred_tokens = tk[0].strip().split(" ")
-    gold_tokens = tk[1].strip().split(" ")
-    sents.append([pred_tokens, gold_tokens])
-# calc f1
-f1 = calc_f1(sents)
-# calc bleu
-bleu1, bleu2 = calc_bleu(sents)
-# calc distinct
-distinct1, distinct2 = calc_distinct(sents)
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("Usage: " + sys.argv[0] + " eval_file")
+        print("eval file format: pred_response \t gold_response")
+        exit()
+    eval_file = sys.argv[1]
+    sents = []
+    for line in open(eval_file):
+        tk = line.strip().split("\t")
+        if len(tk) < 2:
+            continue
+        pred_tokens = tk[0].strip().split(" ")
+        gold_tokens = tk[1].strip().split(" ")
+        sents.append([pred_tokens, gold_tokens])
+    # calc f1
+    f1 = calc_f1(sents)
+    # calc bleu
+    bleu1, bleu2 = calc_bleu(sents)
+    # calc distinct
+    distinct1, distinct2 = calc_distinct(sents)
 
-output_str = "F1: %.2f%%\n" % (f1 * 100)
-output_str += "BLEU1: %.3f%%\n" % bleu1
-output_str += "BLEU2: %.3f%%\n" % bleu2
-output_str += "DISTINCT1: %.3f%%\n" % distinct1
-output_str += "DISTINCT2: %.3f%%\n" % distinct2
-sys.stdout.write(output_str)
+    output_str = "F1: %.2f%%\n" % (f1 * 100)
+    output_str += "BLEU1: %.3f%%\n" % bleu1
+    output_str += "BLEU2: %.3f%%\n" % bleu2
+    output_str += "DISTINCT1: %.3f%%\n" % distinct1
+    output_str += "DISTINCT2: %.3f%%\n" % distinct2
+    sys.stdout.write(output_str)
 
-# write evaluation results to file
-out_file = sys.argv[2]
-with open(out_file, 'w') as fw:
-    fw.write(output_str)
+    # write evaluation results to file
+    out_file = sys.argv[2]
+    with open(out_file, 'w') as fw:
+        fw.write(output_str)
