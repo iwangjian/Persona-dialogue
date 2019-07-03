@@ -144,7 +144,7 @@ if __name__ == '__main__':
     eval_file = sys.argv[1]
     sents = []
     for line in open(eval_file):
-        tk = line.strip().split("\t")
+        tk = line.strip().split("\t\t")
         if len(tk) < 2:
             continue
         pred_tokens = tk[0].strip().split(" ")

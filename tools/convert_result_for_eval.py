@@ -20,7 +20,7 @@ def convert_result_for_eval(sample_file, result_file, output_file):
     for i, sample in enumerate(sample_list):
         sample = json.loads(sample, encoding="utf-8")
         response = sample["golden_response"][0]
-        fout.write(result_list[i] + "\t" + response + "\n")
+        fout.write(result_list[i] + "\t\t" + response + "\n")
 
     fout.close()
 

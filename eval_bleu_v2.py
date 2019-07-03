@@ -245,13 +245,13 @@ if __name__ == '__main__':
     # biased_hyps_resp = model.gen_response(biased_test_data)
     random_hyps_resp = []
     for count, i in enumerate(random_test_data):
-        if count > 0 and count % 100 == 0:
+        if count % 100 == 0:
             print(count)
         random_hyps_resp += model.gen_response([i])
 
     biased_hyps_resp = []
     for count, i in enumerate(biased_test_data):
-        if count > 0 and count % 100 == 0:
+        if count % 100 == 0:
             print(count)
         biased_hyps_resp += model.gen_response([i])
 
