@@ -1,18 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-######################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-# @file main.py
-#
-######################################################################
 import os
 import json
 import logging
 import argparse
 import torch
-from datetime import datetime
 
 from source.inputters.corpus import KnowledgeCorpus
 from source.models.seq2seq import Seq2Seq
@@ -31,42 +23,41 @@ def model_config():
     # Data
     data_arg = parser.add_argument_group("Data")
     data_arg.add_argument("--data_dir", type=str, default="./data/")
-    data_arg.add_argument("--data_prefix", type=str, default="lic")
+    data_arg.add_argument("--data_prefix", type=str, default="ecdt2019")
     data_arg.add_argument("--save_dir", type=str, default="./models/")
-    data_arg.add_argument("--with_label", type=str2bool, default=False)
     data_arg.add_argument("--embed_file", type=str, default=None)
+    data_arg.add_argument("--vocab_file", type=str, default=None)
 
     # Network
     net_arg = parser.add_argument_group("Network")
-    net_arg.add_argument("--embed_size", type=int, default=512)
-    net_arg.add_argument("--hidden_size", type=int, default=1024)
+    net_arg.add_argument("--embed_size", type=int, default=300)
+    net_arg.add_argument("--hidden_size", type=int, default=512)
     net_arg.add_argument("--bidirectional", type=str2bool, default=True)
-    net_arg.add_argument("--max_vocab_size", type=int, default=35000)
+    net_arg.add_argument("--max_vocab_size", type=int, default=30000)
     net_arg.add_argument("--min_len", type=int, default=1)
-    net_arg.add_argument("--max_len", type=int, default=500)
+    net_arg.add_argument("--max_len", type=int, default=400)
     net_arg.add_argument("--num_layers", type=int, default=3)
-    net_arg.add_argument("--attn", type=str, default='general',
-                         choices=['none', 'mlp', 'dot', 'general'])
+    net_arg.add_argument("--attn", type=str, default='general', choices=['none', 'mlp', 'dot', 'general'])
     net_arg.add_argument("--share_vocab", type=str2bool, default=True)
     net_arg.add_argument("--with_bridge", type=str2bool, default=True)
     net_arg.add_argument("--tie_embedding", type=str2bool, default=True)
 
     # Training / Testing
     train_arg = parser.add_argument_group("Training")
+    train_arg.add_argument("--batch_size", type=int, default=32)
     train_arg.add_argument("--optimizer", type=str, default="Adam")
-    train_arg.add_argument("--lr", type=float, default=0.0003)
+    train_arg.add_argument("--lr", type=float, default=0.001)
     train_arg.add_argument("--grad_clip", type=float, default=5.0)
-    train_arg.add_argument("--dropout", type=float, default=0.3)
-    train_arg.add_argument("--num_epochs", type=int, default=20)
-    train_arg.add_argument("--pretrain_epoch", type=int, default=5)
+    train_arg.add_argument("--dropout", type=float, default=0.2)
+    train_arg.add_argument("--num_epochs", type=int, default=10)
     train_arg.add_argument("--lr_decay", type=float, default=0.5)
     train_arg.add_argument("--patience", type=int, default=3)
     train_arg.add_argument("--use_embed", type=str2bool, default=True)
 
     # Geneation
     gen_arg = parser.add_argument_group("Generation")
-    gen_arg.add_argument("--beam_size", type=int, default=10)
-    gen_arg.add_argument("--max_dec_len", type=int, default=30)
+    gen_arg.add_argument("--beam_size", type=int, default=4)
+    gen_arg.add_argument("--max_dec_len", type=int, default=40)
     gen_arg.add_argument("--ignore_unk", type=str2bool, default=True)
     gen_arg.add_argument("--length_average", type=str2bool, default=True)
     gen_arg.add_argument("--gen_file", type=str, default="./test.result")
@@ -75,12 +66,12 @@ def model_config():
     # MISC
     misc_arg = parser.add_argument_group("Misc")
     misc_arg.add_argument("--gpu", type=int, default=0)
-    misc_arg.add_argument("--log_steps", type=int, default=100)
-    misc_arg.add_argument("--valid_steps", type=int, default=200)
-    misc_arg.add_argument("--batch_size", type=int, default=64)
+    misc_arg.add_argument("--log_steps", type=int, default=500)
+    misc_arg.add_argument("--valid_steps", type=int, default=1000)
     misc_arg.add_argument("--ckpt", type=str)
     misc_arg.add_argument("--check", action="store_true")
     misc_arg.add_argument("--test", action="store_true")
+    misc_arg.add_argument("--test_file", type=str, default="./test.json")
     misc_arg.add_argument("--interact", action="store_true")
 
     config = parser.parse_args()
@@ -100,19 +91,10 @@ def main():
     torch.cuda.set_device(device)
     # Data definition
     corpus = KnowledgeCorpus(data_dir=config.data_dir, data_prefix=config.data_prefix,
-                             min_freq=0, max_vocab_size=config.max_vocab_size,
+                             min_freq=0, max_vocab_size=config.max_vocab_size, vocab_file=config.vocab_file,
                              min_len=config.min_len, max_len=config.max_len,
-                             embed_file=config.embed_file, with_label=config.with_label,
-                             share_vocab=config.share_vocab)
-    corpus.load()
-    if config.test and config.ckpt:
-        corpus.reload(data_type='test')
-    train_iter = corpus.create_batches(
-        config.batch_size, "train", shuffle=True, device=device)
-    valid_iter = corpus.create_batches(
-        config.batch_size, "valid", shuffle=False, device=device)
-    test_iter = corpus.create_batches(
-        config.batch_size, "test", shuffle=False, device=device)
+                             embed_file=config.embed_file, share_vocab=config.share_vocab)
+
     # Model definition
     model = Seq2Seq(src_vocab_size=corpus.SRC.vocab_size, tgt_vocab_size=corpus.TGT.vocab_size,
                     embed_size=config.embed_size, hidden_size=config.hidden_size,
@@ -122,7 +104,6 @@ def main():
                     tie_embedding=config.tie_embedding, dropout=config.dropout,
                     use_gpu=config.use_gpu)
 
-    model_name = model.__class__.__name__
     # Generator definition
     generator = TopKGenerator(model=model,
                               src_field=corpus.SRC, tgt_field=corpus.TGT, cue_field=corpus.CUE,
@@ -134,6 +115,10 @@ def main():
         return generator
     # Testing
     elif config.test and config.ckpt:
+        corpus.reload(data_type='test', data_file=config.test_file)
+        test_iter = corpus.create_batches(
+            config.batch_size, "test", shuffle=False, device=device)
+
         print(model)
         model.load(config.ckpt)
         print("Testing ...")
@@ -142,6 +127,14 @@ def main():
         print("Generating ...")
         evaluate_generation(generator, test_iter, save_file=config.gen_file, verbos=True)
     else:
+        corpus.load()
+        train_iter = corpus.create_batches(
+            config.batch_size, "train", shuffle=True, device=device)
+        valid_iter = corpus.create_batches(
+            config.batch_size, "valid", shuffle=False, device=device)
+        test_iter = corpus.create_batches(
+            config.batch_size, "test", shuffle=False, device=device)
+
         # Load word embeddings
         if config.use_embed and config.embed_file is not None:
             model.encoder.embedder.load_embeddings(
@@ -153,13 +146,13 @@ def main():
             model.parameters(), lr=config.lr)
         # Learning rate scheduler
         if config.lr_decay is not None and 0 < config.lr_decay < 1.0:
-            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, 
-                            factor=config.lr_decay, patience=config.patience, verbose=True, min_lr=1e-5)
+            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer=optimizer, factor=config.lr_decay,
+                patience=config.patience, verbose=True, min_lr=1e-5)
         else:
             lr_scheduler = None
+
         # Save directory
-        date_str, time_str = datetime.now().strftime("%Y%m%d-%H%M%S").split("-")
-        result_str = "{}-{}".format(model_name, time_str)
         if not os.path.exists(config.save_dir):
             os.makedirs(config.save_dir)
         # Logger definition
