@@ -241,8 +241,8 @@ class TopKGenerator(object):
         results = []
         batch_cnt = 0
         for batch in batch_iter:
-            # generate outputs
-            enc_outputs, preds, lengths, scores = self.forward(inputs=batch, enc_hidden=None)
+            enc_outputs, preds, lengths, scores = self.forward(
+                inputs=batch, enc_hidden=None)
 
             # denumericalization
             src = batch.src[0]

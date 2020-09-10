@@ -9,8 +9,8 @@ import torch.nn as nn
 
 from source.models.base_model import BaseModel
 from source.modules.embedder import Embedder
-from source.modules.encoders.rnn_encoder import RNNEncoder
-from source.modules.decoders.rnn_decoder import RNNDecoder
+from source.modules.rnn_encoder import RNNEncoder
+from source.modules.rnn_decoder import RNNDecoder
 from source.utils.criterions import NLLLoss
 from source.utils.metrics import accuracy
 from source.utils.misc import Pack

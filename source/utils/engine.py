@@ -321,6 +321,10 @@ def evaluate_generation(generator,
     results = generator.generate(batch_iter=data_iter,
                                  num_batches=num_batches)
 
+    print("scores:", len(results[0].scores))
+    print(results[0].scores)
+
+
     refs = [result.tgt.split(" ") for result in results]
     hyps = [result.preds[0].split(" ") for result in results]
 

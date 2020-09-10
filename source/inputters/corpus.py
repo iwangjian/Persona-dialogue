@@ -33,7 +33,7 @@ class Corpus(object):
         else:
             prepared_vocab_file = data_prefix + "." + str(max_vocab_size) + ".vocab.pt"
 
-        prepared_data_file = data_prefix + ".data.pt"
+        prepared_data_file = data_prefix + ".data_v2.pt"
 
         self.prepared_data_file = os.path.join(data_dir, prepared_data_file)
         self.prepared_vocab_file = os.path.join(data_dir, prepared_vocab_file)
@@ -129,18 +129,26 @@ class Corpus(object):
                 vocab_dict[name] = field.dump_vocab()
         return vocab_dict
 
-    def build_examples(self, data):
+    def build_examples(self, data, data_type=None):
         """
         Args
         ----
         data: ``List[Dict]``
+        data_type: str
         """
         examples = []
-        for raw_data in tqdm(data):
-            example = {}
-            for name, strings in raw_data.items():
-                example[name] = self.fields[name].numericalize(strings)
-            examples.append(example)
+        if data_type == 'test':
+            for raw_data in data:
+                example = {}
+                for name, strings in raw_data.items():
+                    example[name] = self.fields[name].numericalize(strings)
+                examples.append(example)
+        else:
+            for raw_data in tqdm(data):
+                example = {}
+                for name, strings in raw_data.items():
+                    example[name] = self.fields[name].numericalize(strings)
+                examples.append(example)
         if self.sort_fn is not None:
             print("Sorting examples ...")
             examples = self.sort_fn(examples)
@@ -246,7 +254,10 @@ class KnowledgeCorpus(Corpus):
             self.fields = {'src': self.SRC, 'tgt': self.TGT, 'cue': self.CUE}
 
         # load vocab
-        self.load_vocab()
+        if not os.path.exists(self.prepared_vocab_file):
+            self.build()
+        else:
+            self.load_vocab()
         self.padding_idx = self.TGT.stoi[self.TGT.pad_token]
 
         def src_filter_pred(src):
@@ -297,7 +308,10 @@ class KnowledgeCorpus(Corpus):
                 src = src.strip()
                 tgt = dialog["golden_response"][0]
                 filter_knowledge = []
-                filter_knowledge.append(' '.join(responder_profile["tag"][0].split(';')))
+                if type(responder_profile["tag"]) is list:
+                    filter_knowledge.append(' '.join(responder_profile["tag"][0].split(';')))
+                else:
+                    filter_knowledge.append(' '.join(responder_profile["tag"].split(';')))
                 filter_knowledge.append(responder_profile["loc"])
                 data.append({'src': src, 'tgt': tgt, 'cue': filter_knowledge})
 
